@@ -2169,19 +2169,112 @@ function buildFinInadimplenciaCharts(){
 
 const Login = {
   init() {
-    if (sessionStorage.getItem(SESSION_KEY) === 'ok') { this.entrarNoApp(); return; }
+    // Se a sessão anterior ficou pela metade, entrar direto pode travar a tela.
+    // Qualquer falha aqui volta pro botão de login em vez de deixar em branco.
+    if (sessionStorage.getItem(SESSION_KEY) === 'ok') {
+      try { this.entrarNoApp(); return; }
+      catch (e) {
+        console.warn('Sessão anterior inconsistente, limpando:', e);
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(EMAIL_LOGADO_KEY);
+      }
+    }
     this.renderBotaoGoogle();
   },
+  _tentativas: 0,
   renderBotaoGoogle() {
     if (!window.google || !google.accounts || !google.accounts.id) {
+      this._tentativas++;
+      if (this._tentativas > 40) { this._mostrarPlanoB('A biblioteca de login do Google não carregou.'); return; }
       setTimeout(() => this.renderBotaoGoogle(), 300);
       return;
     }
-    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (resp) => this.aoLogar(resp) });
-    google.accounts.id.renderButton(
-      document.getElementById('google-btn-container'),
-      { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', width: 280 }
-    );
+    try {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (resp) => this.aoLogar(resp),
+        auto_select: false,
+        itp_support: true,
+        use_fedcm_for_prompt: true,
+        cancel_on_tap_outside: true
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('google-btn-container'),
+        { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', width: 280 }
+      );
+    } catch (e) {
+      this._mostrarPlanoB('Não foi possível montar o botão do Google: ' + e.message);
+      return;
+    }
+    // Se o clique não retornar em 8s, o navegador provavelmente bloqueou o
+    // fluxo (FedCM ou cookies de terceiros). Oferece o caminho alternativo.
+    const cont = document.getElementById('google-btn-container');
+    if (cont && !cont._vigiado) {
+      cont._vigiado = true;
+      cont.addEventListener('click', () => {
+        setTimeout(() => {
+          if (sessionStorage.getItem(SESSION_KEY) !== 'ok') {
+            this._mostrarPlanoB('O Google não respondeu ao login. Isso costuma ser bloqueio de cookies de terceiros no navegador.');
+          }
+        }, 8000);
+      }, true);
+    }
+  },
+
+  // Caminho alternativo: popup OAuth. Não depende de FedCM nem de cookie
+  // de terceiro, então funciona quando o botão padrão trava.
+  _mostrarPlanoB(motivo) {
+    const box = document.getElementById('loginError');
+    if (!box || box._planoB) return;
+    box._planoB = true;
+    box.innerHTML = '<div style="margin-bottom:10px;opacity:.85;">' + motivo + '</div>' +
+      '<button id="btnPlanoB" style="background:#E0EEE7;color:#011E3C;border:none;' +
+      'padding:9px 18px;border-radius:50px;font-family:inherit;font-size:12px;' +
+      'font-weight:700;cursor:pointer;letter-spacing:.4px;">Entrar por outro caminho</button>';
+    const btn = document.getElementById('btnPlanoB');
+    if (btn) btn.addEventListener('click', () => this.entrarViaPopup());
+  },
+
+  entrarViaPopup() {
+    if (!window.google || !google.accounts || !google.accounts.oauth2) {
+      document.getElementById('loginError').textContent =
+        'A biblioteca do Google não carregou. Recarregue a página com Ctrl+Shift+R.';
+      return;
+    }
+    const cli = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: (resp) => {
+        if (!resp || !resp.access_token) {
+          document.getElementById('loginError').textContent = 'Login cancelado ou negado pelo Google.';
+          return;
+        }
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + resp.access_token }
+        })
+          .then(r => r.json())
+          .then(info => this._autorizar((info.email || '').toLowerCase().trim()))
+          .catch(err => {
+            document.getElementById('loginError').textContent =
+              'Não foi possível ler o e-mail da conta: ' + err.message;
+          });
+      }
+    });
+    cli.requestAccessToken();
+  },
+
+  _autorizar(email) {
+    const box = document.getElementById('loginError');
+    if (!email) { if (box) box.textContent = 'Não foi possível identificar o e-mail da conta.'; return; }
+    const ok = EMAILS_AUTORIZADOS.map(e => e.toLowerCase().trim()).includes(email);
+    if (!ok) {
+      if (box) box.textContent = 'E-mail (' + email + ') não autorizado. Fale com a equipe Nortmont pra liberar o acesso.';
+      return;
+    }
+    sessionStorage.setItem(SESSION_KEY, 'ok');
+    sessionStorage.setItem(EMAIL_LOGADO_KEY, email);
+    if (box) { box.innerHTML = ''; box._planoB = false; }
+    this.entrarNoApp();
   },
   // Decodifica o JWT do Google no navegador, sem verificar assinatura —
   // suficiente pra ler o e-mail no client-side. A validação de "quem pode
@@ -2198,25 +2291,24 @@ const Login = {
   aoLogar(resp) {
     let dados;
     try { dados = this._decodificarJWT(resp.credential); }
-    catch (e) { document.getElementById('loginError').textContent = 'Não foi possível ler os dados de login. Tente novamente.'; return; }
-    const email = (dados.email || '').toLowerCase().trim();
-    const autorizado = EMAILS_AUTORIZADOS.map(e => e.toLowerCase().trim()).includes(email);
-    if (!autorizado) {
-      document.getElementById('loginError').textContent = 'E-mail (' + email + ') não autorizado. Fale com a equipe Nortmont pra liberar o acesso.';
+    catch (e) {
+      this._mostrarPlanoB('Não foi possível ler os dados de login.');
       return;
     }
-    sessionStorage.setItem(SESSION_KEY, 'ok');
-    sessionStorage.setItem(EMAIL_LOGADO_KEY, email);
-    document.getElementById('loginError').textContent = '';
-    this.entrarNoApp();
+    this._autorizar((dados.email || '').toLowerCase().trim());
   },
   entrarNoApp() {
-    carregarDadosAoVivo()
-      .then(() => showApp())
-      .catch(err => {
-        console.error('Falha ao buscar dados ao vivo, usando JSON estático embutido:', err);
-        showApp();
-      });
+    // showApp() precisa rodar mesmo se o backend falhar ou se carregarDadosAoVivo
+    // lançar de forma síncrona. A tela nunca fica presa no login.
+    let p;
+    try { p = carregarDadosAoVivo(); }
+    catch (e) { console.error('carregarDadosAoVivo falhou:', e); showApp(); return; }
+    if (!p || typeof p.then !== 'function') { showApp(); return; }
+    p.then(() => showApp())
+     .catch(err => {
+       console.error('Falha ao buscar dados ao vivo, usando JSON estático embutido:', err);
+       showApp();
+     });
   }
 };
 
