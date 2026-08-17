@@ -273,22 +273,23 @@
   }
   .period-chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
   .period-chip{
-    background:transparent;border:1px solid rgba(224,238,231,.2);
-    color:rgba(224,238,231,.7);font-family:inherit;font-size:10.5px;font-weight:500;
+    background:var(--sage);border:1px solid var(--sage);
+    color:var(--navy);font-family:inherit;font-size:10.5px;font-weight:500;
     padding:5px 12px;border-radius:50px;cursor:pointer;letter-spacing:.4px;
     transition:all .15s;white-space:nowrap;
   }
-  .period-chip:hover{color:var(--mint);border-color:rgba(224,238,231,.4);}
+  .period-chip:hover{background:var(--mint);border-color:var(--mint);color:var(--navy);}
   .period-chip.active{
-    background:var(--sage);color:var(--navy);
-    border-color:var(--sage);font-weight:700;
+    background:var(--navy);color:var(--mint);
+    border-color:var(--navy);font-weight:700;
   }
   .period-chip.shortcut{
-    background:rgba(168,204,168,.1);color:var(--mint);
-    border-color:rgba(168,204,168,.35);font-weight:600;
+    background:rgba(168,204,168,.45);color:var(--navy);
+    border-color:rgba(168,204,168,.7);font-weight:600;
   }
   .period-chip.shortcut.active{
-    background:var(--sage);color:var(--navy);
+    background:var(--navy);color:var(--mint);
+    border-color:var(--navy);
   }
 
   .period-more-btn{
@@ -1377,7 +1378,18 @@ const DRE_MAP = {
   'Receita Bruta': 'receita_bruta',
   'Impostos': 'impostos',
   'Simples Nacional': 'simples',
+  'ICMS': 'imp_icms',
+  'ISSQN': 'imp_issqn',
+  'IRRF': 'imp_irrf',
+  'PIS': 'imp_pis',
+  'COFINS': 'imp_cofins',
+  'CSLL ou IR Retido': 'imp_csll_ir',
+  'Saída Antecipação Inadimplida': 'imp_saida_antec',
   'Deduções': 'deducoes',
+  'Reembolso Clientes': 'ded_reembolso',
+  'Permuta': 'ded_permuta',
+  'Taxas de Cartões': 'ded_taxas_cartoes',
+  'Outras Deduções': 'ded_outras',
   'Receita Líquida': 'receita_liquida',
   'CMV': 'cmv',
   'Matérias-Primas': 'cmv_materias_primas',
@@ -1385,6 +1397,8 @@ const DRE_MAP = {
   'Combustível para Entrega': 'cmv_combustivel',
   'Fretes': 'cmv_fretes',
   'Pedágio': 'cmv_pedagio',
+  'Serviços de Terceiros': 'cmv_servicos_terceiros',
+  'Outros Insumos': 'cmv_outros_insumos',
   'Lucro Bruto': 'lucro_bruto',
   'Despesas Operacionais': 'desp_operacionais',
   'Despesas Administrativas': 'desp_administrativas',
@@ -1395,6 +1409,7 @@ const DRE_MAP = {
   'Telefone': 'adm_telefone',
   'Consultoria': 'adm_consultoria',
   'Assessoria Contábil': 'adm_contabil',
+  'Assessoria Jurídica': 'adm_juridica',
   'Sistemas': 'adm_sistemas',
   'Combustível (Administrativo)': 'adm_combustivel',
   'Manutenção de Veículos': 'adm_manut_veiculo',
@@ -1413,11 +1428,18 @@ const DRE_MAP = {
   'Salários': 'pes_salario',
   'Pró-labore': 'pes_prolabore',
   'Comissões': 'pes_comissoes',
+  'Comissão Vendedor Externo': 'pes_comissao_externo',
   'Benefícios': 'pes_beneficios',
   '13º Salário': 'pes_13sal',
+  'Adicional Noturno': 'pes_adic_noturno',
   'Férias': 'pes_ferias',
+  'FGTS': 'pes_fgts',
+  'Hora Extra': 'pes_hora_extra',
+  'INSS': 'pes_inss',
+  'IR Retido': 'pes_ir_retido',
   'Medicina do Trabalho': 'pes_medicina',
   'Rescisões': 'pes_rescisoes',
+  'Sindicato': 'pes_sindicato',
   'Outras Despesas com Pessoal': 'pes_outras',
   'Marketing e Vendas': 'desp_marketing',
   'Marketing Online': 'mkt_online',
@@ -1434,12 +1456,15 @@ const DRE_MAP = {
   'Lucro Operacional': 'lucro_operacional',
   'Receitas Não Operacionais': 'receitas_nao_op',
   'Entradas Não Operacionais': 'entradas_nao_op',
+  'Integralização de Capital': 'nop_integralizacao',
+  'Aporte Financeiro': 'nop_aporte',
   'Investimentos e Provisões': 'invest_provisoes',
   'Investimento em Equipamento': 'inv_equipamento',
   'Investimentos Gerais': 'inv_gerais',
   'Empréstimos': 'inv_emprestimos',
   'Lucro Antes dos Tributos': 'lucro_antes_trib',
   'Lucro Líquido': 'lucro_liquido',
+  'Distribuição de Lucros': 'distribuicao_lucros',
   'Excedente': 'excedente',
   'Margem de Contribuição (%)': 'margem_contribuicao',
   'Ponto de Equilíbrio': 'ponto_equilibrio'
@@ -4985,15 +5010,28 @@ function renderDRETable(){
   const rows = [
     {key:'receita_bruta', label:'(+) RECEITA BRUTA', cls:'row-major', sintetico:true},
     {key:'venda', label:'Venda', cls:'row-sub'},
-    {key:'impostos', label:'(−) IMPOSTOS', cls:'row-major', neg:true, sintetico:true},
-    {key:'simples', label:'Simples Nacional', cls:'row-sub', neg:true},
-    {key:'deducoes', label:'(−) DEDUÇÕES', cls:'row-major', neg:true, sintetico:true},
+    {key:'impostos', label:'(−) IMPOSTOS', cls:'row-major row-clickable', neg:true, group:'imp', sintetico:true},
+    {key:'simples', label:'Simples Nacional', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_icms', label:'ICMS', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_issqn', label:'ISSQN', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_irrf', label:'IRRF', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_pis', label:'PIS', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_cofins', label:'COFINS', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_csll_ir', label:'CSLL ou IR Retido', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'imp_saida_antec', label:'Saída Antecipação Inadimplida', cls:'row-sub row-detail', neg:true, group:'imp'},
+    {key:'deducoes', label:'(−) DEDUÇÕES', cls:'row-major row-clickable', neg:true, group:'ded', sintetico:true},
+    {key:'ded_reembolso', label:'Reembolso Clientes', cls:'row-sub row-detail', neg:true, group:'ded'},
+    {key:'ded_permuta', label:'Permuta', cls:'row-sub row-detail', neg:true, group:'ded'},
+    {key:'ded_taxas_cartoes', label:'Taxas de Cartões', cls:'row-sub row-detail', neg:true, group:'ded'},
+    {key:'ded_outras', label:'Outras Deduções', cls:'row-sub row-detail', neg:true, group:'ded'},
     {key:'receita_liquida', label:'(=) RECEITA LÍQUIDA', cls:'row-result', sintetico:true},
     {key:'cmv', label:'(−) CMV', cls:'row-major row-clickable', neg:true, group:'cmv', sintetico:true},
     {key:'cmv_materias_primas', label:'Matérias-Primas', cls:'row-sub row-detail', neg:true, group:'cmv'},
     {key:'cmv_embalagens', label:'Embalagens', cls:'row-sub row-detail', neg:true, group:'cmv'},
     {key:'cmv_fretes', label:'Fretes', cls:'row-sub row-detail', neg:true, group:'cmv'},
     {key:'cmv_pedagio', label:'Pedágio', cls:'row-sub row-detail', neg:true, group:'cmv'},
+    {key:'cmv_servicos_terceiros', label:'Serviços de Terceiros', cls:'row-sub row-detail', neg:true, group:'cmv'},
+    {key:'cmv_outros_insumos', label:'Outros Insumos', cls:'row-sub row-detail', neg:true, group:'cmv'},
     {key:'cmv_combustivel', label:'Combustível para Entrega', cls:'row-sub row-detail', neg:true, group:'cmv'},
     {key:'lucro_bruto', label:'(=) LUCRO BRUTO', cls:'row-result', sintetico:true},
     {key:'desp_operacionais', label:'(−) DESPESAS OPERACIONAIS', cls:'row-major', neg:true, sintetico:true},
@@ -5001,6 +5039,7 @@ function renderDRETable(){
     {key:'adm_aluguel', label:'Aluguel', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_consultoria', label:'Consultoria', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_contabil', label:'Assessoria Contábil', cls:'row-sub row-detail', neg:true, group:'adm'},
+    {key:'adm_juridica', label:'Assessoria Jurídica', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_energia', label:'Energia Elétrica', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_combustivel', label:'Combustível', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_manut_veiculo', label:'Manutenção Veículo', cls:'row-sub row-detail', neg:true, group:'adm'},
@@ -5024,10 +5063,17 @@ function renderDRETable(){
     {key:'pes_salario', label:'Salário', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_beneficios', label:'Benefícios', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_comissoes', label:'Comissões', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_comissao_externo', label:'Comissão Vendedor Externo', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_13sal', label:'13º Salário', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_adic_noturno', label:'Adicional Noturno', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_ferias', label:'Férias', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_fgts', label:'FGTS', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_hora_extra', label:'Hora Extra', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_inss', label:'INSS', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_ir_retido', label:'IR Retido', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_medicina', label:'Medicina do Trabalho', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_rescisoes', label:'Rescisões', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_sindicato', label:'Sindicato', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_outras', label:'Outras Despesas com Pessoal', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'desp_marketing', label:'(−) Despesas Marketing e Vendas', cls:'row-major row-clickable', neg:true, group:'mkt', sintetico:true},
     {key:'mkt_servicos', label:'Serviços de Marketing', cls:'row-sub row-detail', neg:true, group:'mkt'},
@@ -5042,19 +5088,28 @@ function renderDRETable(){
     {key:'fin_iof', label:'IOF', cls:'row-sub row-detail', neg:true, group:'fin'},
     {key:'fin_outras_bancarias', label:'Outras Despesas Bancárias', cls:'row-sub row-detail', neg:true, group:'fin'},
     {key:'lucro_operacional', label:'(=) LUCRO OPERACIONAL', cls:'row-result', sintetico:true},
-    {key:'receitas_nao_op', label:'(+) Receitas Não Operacionais', cls:'row-major', sintetico:true},
+    {key:'receitas_nao_op', label:'(+) Receitas Não Operacionais', cls:'row-major row-clickable', group:'nop', sintetico:true},
+    {key:'nop_integralizacao', label:'Integralização de Capital', cls:'row-sub row-detail', neg:false, group:'nop'},
+    {key:'nop_aporte', label:'Aporte Financeiro', cls:'row-sub row-detail', neg:false, group:'nop'},
     {key:'invest_provisoes', label:'(−) INVESTIMENTOS E PROVISÕES', cls:'row-major row-clickable', neg:true, group:'inv', sintetico:true},
     {key:'inv_equipamento', label:'Investimentos em Equipamento', cls:'row-sub row-detail', neg:true, group:'inv'},
     {key:'inv_emprestimos', label:'Empréstimos', cls:'row-sub row-detail', neg:true, group:'inv'},
     {key:'inv_gerais', label:'Investimentos Gerais', cls:'row-sub row-detail', neg:true, group:'inv'},
     {key:'lucro_liquido', label:'(=) LUCRO LÍQUIDO', cls:'row-result', sintetico:true},
+    {key:'distribuicao_lucros', label:'Distribuição de Lucros', cls:'row-major', neg:true, sintetico:true},
     {key:'excedente', label:'(=) EXCEDENTE', cls:'row-result row-major', sintetico:true}
   ];
 
   const mesesDRE = STATE.selectedMonths;
   const dreView = STATE.dreView || 'analitico';
   // No modo sintético, exibir apenas as linhas marcadas com sintetico:true
-  const activeRows = dreView === 'sintetico' ? rows.filter(r => r.sintetico) : rows;
+  // Linhas de detalhe zeradas em todos os meses selecionados não são exibidas.
+  // Elas existem na DRE para receber lançamento futuro, mas poluem a tabela
+  // enquanto estão vazias. Linhas sintéticas e totais aparecem sempre.
+  const mesesSel = STATE.selectedMonths;
+  const temValor = r => r.sintetico || !r.cls.includes('row-detail') ||
+    mesesSel.some(m => Math.abs((SERIES[r.key] && SERIES[r.key][m]) || 0) > 0.005);
+  const activeRows = (dreView === 'sintetico' ? rows.filter(r => r.sintetico) : rows).filter(temValor);
   const showAH = mesesDRE.length > 1;
   const labelAcum = mesesDRE.length === 1 ? 'Acumulado' : 'Acum. período';
   const labelMedia = mesesDRE.length === 1 ? '—' : 'Média/mês';
