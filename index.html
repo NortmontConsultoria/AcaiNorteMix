@@ -272,37 +272,37 @@
     color:rgba(224,238,231,.5);flex-shrink:0;
   }
   .period-chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
-  /* Não selecionado: quase se funde com a barra. Selecionado: claro, com anel. */
+  /* Não selecionado: pílula visível e sóbria. Selecionado: claro, com anel */
   .period-chip{
-    background:rgba(224,238,231,.05);border:1px solid rgba(224,238,231,.14);
-    color:rgba(224,238,231,.45);font-family:inherit;font-size:10.5px;font-weight:500;
+    background:rgba(224,238,231,.09);border:1px solid rgba(224,238,231,.16);
+    color:rgba(224,238,231,.72);font-family:inherit;font-size:10.5px;font-weight:500;
     padding:5px 12px;border-radius:50px;cursor:pointer;letter-spacing:.4px;
     transition:all .15s;white-space:nowrap;
   }
   .period-chip:hover{
-    background:rgba(224,238,231,.12);color:rgba(224,238,231,.85);
-    border-color:rgba(224,238,231,.3);
+    background:rgba(224,238,231,.16);color:var(--mint);
+    border-color:rgba(224,238,231,.32);
   }
   .period-chip.active{
     background:var(--mint);color:var(--navy);
     border-color:var(--mint);font-weight:700;
-    box-shadow:0 0 0 2px rgba(168,204,168,.55);
+    box-shadow:0 0 0 2px rgba(47,143,110,.65), 0 0 10px rgba(47,143,110,.35);
   }
   .period-chip.active:hover{
     background:#fff;border-color:#fff;color:var(--navy);
   }
   .period-chip.shortcut{
-    background:rgba(168,204,168,.07);color:rgba(168,204,168,.55);
-    border-color:rgba(168,204,168,.2);font-weight:600;
+    background:rgba(168,204,168,.12);color:rgba(168,204,168,.8);
+    border-color:rgba(168,204,168,.28);font-weight:600;
   }
   .period-chip.shortcut:hover{
-    background:rgba(168,204,168,.16);color:rgba(168,204,168,.9);
-    border-color:rgba(168,204,168,.4);
+    background:rgba(168,204,168,.22);color:var(--mint);
+    border-color:rgba(168,204,168,.48);
   }
   .period-chip.shortcut.active{
     background:var(--sage);color:var(--navy);
     border-color:var(--sage);
-    box-shadow:0 0 0 2px rgba(224,238,231,.45);
+    box-shadow:0 0 0 2px rgba(47,143,110,.65), 0 0 10px rgba(47,143,110,.3);
   }
 
   .period-more-btn{
@@ -1052,6 +1052,21 @@ table.dre tr.row-drill:hover .drill-hint{opacity:.85}
   }
 
 
+  /* ===== Login: status de carregamento ===== */
+  .login-status{
+    display:flex;align-items:center;gap:9px;justify-content:center;
+    font-size:11px;color:rgba(224,238,231,.65);letter-spacing:.3px;
+    margin-top:2px;
+  }
+  .login-spinner{
+    width:13px;height:13px;border-radius:50%;flex:0 0 auto;
+    border:2px solid rgba(224,238,231,.25);border-top-color:var(--sage);
+    animation:loginspin .7s linear infinite;
+  }
+  @keyframes loginspin{ to{ transform:rotate(360deg); } }
+  #google-btn-container.login-ocupado{opacity:.4;pointer-events:none;}
+
+
   /* ===== Inadimplência — badges de ação ===== */
   .np-badge{display:inline-block;padding:3px 9px;border-radius:3px;font-size:10.5px;
     font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;}
@@ -1080,6 +1095,7 @@ table.dre tr.row-drill:hover .drill-hint{opacity:.85}
     <div class="login-subtitle">Açaí Norte Mix</div>
     <div style="margin-top:8px;display:flex;flex-direction:column;align-items:center;gap:14px">
       <div id="google-btn-container"></div>
+      <div class="login-status" id="loginStatus" style="display:none"></div>
       <div class="login-error" id="loginError"></div>
     </div>
     <div style="margin-top:22px;font-size:10.5px;color:rgba(224,238,231,.5);letter-spacing:.3px">
@@ -1698,8 +1714,17 @@ function chaveMes(ano, mesExtenso) {
 // =============================================================================
 // getTudo() → monta MESES / SERIES / METAS / __ABAS_POR_MES__
 // =============================================================================
+// Sem timeout, um backend lento (cold start do Apps Script) prende a tela
+// indefinidamente. 9s cobre o cold start normal sem deixar o usuário esperando
+// demais; se estourar, cai no catch de quem chamou e segue com o embutido.
+function fetchComTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 async function carregarDadosAoVivo() {
-  const resp = await fetch(BACKEND_URL + '?action=getTudo');
+  const resp = await fetchComTimeout(BACKEND_URL + '?action=getTudo', 9000);
   const json = await resp.json();
   if (!json.ok) throw new Error(json.erro || 'getTudo retornou ok:false');
   window.__ULTIMO_GETTUDO__ = json; // debug: inspecionar no console se precisar
@@ -2168,20 +2193,42 @@ function buildFinInadimplenciaCharts(){
 
 
 const Login = {
+  _entrando: false,
+  _tentativas: 0,
+
   init() {
-    // Se a sessão anterior ficou pela metade, entrar direto pode travar a tela.
-    // Qualquer falha aqui volta pro botão de login em vez de deixar em branco.
+    // O botão sempre é desenhado primeiro, mesmo quando há sessão salva.
+    // Antes, sessão salva pulava direto pra entrarNoApp() sem desenhar nada;
+    // se o backend travasse, a tela ficava vazia (sem botão, sem mensagem) e
+    // só um F5 em aba nova (sem sessão) mostrava o botão de novo.
+    this.renderBotaoGoogle();
+
     if (sessionStorage.getItem(SESSION_KEY) === 'ok') {
-      try { this.entrarNoApp(); return; }
-      catch (e) {
+      this._status('Continuando sessão anterior...');
+      try {
+        this.entrarNoApp().finally(() => this._status(''));
+      } catch (e) {
         console.warn('Sessão anterior inconsistente, limpando:', e);
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(EMAIL_LOGADO_KEY);
+        this._status('');
       }
     }
-    this.renderBotaoGoogle();
   },
-  _tentativas: 0,
+
+  _status(texto) {
+    const el = document.getElementById('loginStatus');
+    if (!el) return;
+    if (!texto) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'flex';
+    el.innerHTML = '<span class="login-spinner"></span><span>' + texto + '</span>';
+  },
+
+  _ocupado(sim) {
+    const cont = document.getElementById('google-btn-container');
+    if (cont) cont.classList.toggle('login-ocupado', !!sim);
+  },
+
   renderBotaoGoogle() {
     if (!window.google || !google.accounts || !google.accounts.id) {
       this._tentativas++;
@@ -2204,25 +2251,11 @@ const Login = {
       );
     } catch (e) {
       this._mostrarPlanoB('Não foi possível montar o botão do Google: ' + e.message);
-      return;
-    }
-    // Se o clique não retornar em 8s, o navegador provavelmente bloqueou o
-    // fluxo (FedCM ou cookies de terceiros). Oferece o caminho alternativo.
-    const cont = document.getElementById('google-btn-container');
-    if (cont && !cont._vigiado) {
-      cont._vigiado = true;
-      cont.addEventListener('click', () => {
-        setTimeout(() => {
-          if (sessionStorage.getItem(SESSION_KEY) !== 'ok') {
-            this._mostrarPlanoB('O Google não respondeu ao login. Isso costuma ser bloqueio de cookies de terceiros no navegador.');
-          }
-        }, 8000);
-      }, true);
     }
   },
 
-  // Caminho alternativo: popup OAuth. Não depende de FedCM nem de cookie
-  // de terceiro, então funciona quando o botão padrão trava.
+  // Caminho alternativo: popup OAuth. Não depende do iframe de One Tap/FedCM,
+  // então funciona quando o botão padrão está travado ou bloqueado.
   _mostrarPlanoB(motivo) {
     const box = document.getElementById('loginError');
     if (!box || box._planoB) return;
@@ -2236,6 +2269,7 @@ const Login = {
   },
 
   entrarViaPopup() {
+    if (this._entrando) return;
     if (!window.google || !google.accounts || !google.accounts.oauth2) {
       document.getElementById('loginError').textContent =
         'A biblioteca do Google não carregou. Recarregue a página com Ctrl+Shift+R.';
@@ -2249,12 +2283,16 @@ const Login = {
           document.getElementById('loginError').textContent = 'Login cancelado ou negado pelo Google.';
           return;
         }
+        this._entrando = true;
+        this._ocupado(true);
+        this._status('Confirmando sua conta...');
         fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: 'Bearer ' + resp.access_token }
         })
           .then(r => r.json())
           .then(info => this._autorizar((info.email || '').toLowerCase().trim()))
           .catch(err => {
+            this._entrando = false; this._ocupado(false); this._status('');
             document.getElementById('loginError').textContent =
               'Não foi possível ler o e-mail da conta: ' + err.message;
           });
@@ -2263,19 +2301,6 @@ const Login = {
     cli.requestAccessToken();
   },
 
-  _autorizar(email) {
-    const box = document.getElementById('loginError');
-    if (!email) { if (box) box.textContent = 'Não foi possível identificar o e-mail da conta.'; return; }
-    const ok = EMAILS_AUTORIZADOS.map(e => e.toLowerCase().trim()).includes(email);
-    if (!ok) {
-      if (box) box.textContent = 'E-mail (' + email + ') não autorizado. Fale com a equipe Nortmont pra liberar o acesso.';
-      return;
-    }
-    sessionStorage.setItem(SESSION_KEY, 'ok');
-    sessionStorage.setItem(EMAIL_LOGADO_KEY, email);
-    if (box) { box.innerHTML = ''; box._planoB = false; }
-    this.entrarNoApp();
-  },
   // Decodifica o JWT do Google no navegador, sem verificar assinatura —
   // suficiente pra ler o e-mail no client-side. A validação de "quem pode
   // entrar" é a lista EMAILS_AUTORIZADOS. Proteção real do dado é a
@@ -2288,27 +2313,57 @@ const Login = {
     ).join(''));
     return JSON.parse(json);
   },
+
   aoLogar(resp) {
+    if (this._entrando) return; // já tem um login em andamento, ignora clique repetido
+    this._entrando = true;
+    this._ocupado(true);
+    this._status('Entrando...');
     let dados;
     try { dados = this._decodificarJWT(resp.credential); }
     catch (e) {
+      this._entrando = false; this._ocupado(false); this._status('');
       this._mostrarPlanoB('Não foi possível ler os dados de login.');
       return;
     }
     this._autorizar((dados.email || '').toLowerCase().trim());
   },
+
+  _autorizar(email) {
+    const box = document.getElementById('loginError');
+    if (!email) {
+      this._entrando = false; this._ocupado(false); this._status('');
+      if (box) box.textContent = 'Não foi possível identificar o e-mail da conta.';
+      return;
+    }
+    const ok = EMAILS_AUTORIZADOS.map(e => e.toLowerCase().trim()).includes(email);
+    if (!ok) {
+      this._entrando = false; this._ocupado(false); this._status('');
+      if (box) box.textContent = 'E-mail (' + email + ') não autorizado. Fale com a equipe Nortmont pra liberar o acesso.';
+      return;
+    }
+    sessionStorage.setItem(SESSION_KEY, 'ok');
+    sessionStorage.setItem(EMAIL_LOGADO_KEY, email);
+    if (box) { box.innerHTML = ''; box._planoB = false; }
+    this._status('Carregando os dados do painel...');
+    this.entrarNoApp().finally(() => {
+      this._entrando = false; this._ocupado(false); this._status('');
+    });
+  },
+
+  // Sempre resolve dentro de um tempo limitado (ver fetchComTimeout, 9s) e
+  // sempre termina chamando showApp(), mesmo se o backend falhar ou travar.
+  // A tela nunca mais fica presa no login esperando uma resposta que não vem.
   entrarNoApp() {
-    // showApp() precisa rodar mesmo se o backend falhar ou se carregarDadosAoVivo
-    // lançar de forma síncrona. A tela nunca fica presa no login.
     let p;
     try { p = carregarDadosAoVivo(); }
-    catch (e) { console.error('carregarDadosAoVivo falhou:', e); showApp(); return; }
-    if (!p || typeof p.then !== 'function') { showApp(); return; }
-    p.then(() => showApp())
-     .catch(err => {
-       console.error('Falha ao buscar dados ao vivo, usando JSON estático embutido:', err);
-       showApp();
-     });
+    catch (e) { console.error('carregarDadosAoVivo falhou:', e); showApp(); return Promise.resolve(); }
+    if (!p || typeof p.then !== 'function') { showApp(); return Promise.resolve(); }
+    return p.then(() => showApp())
+      .catch(err => {
+        console.error('Falha ao buscar dados ao vivo, usando JSON estático embutido:', err);
+        showApp();
+      });
   }
 };
 
