@@ -272,37 +272,37 @@
     color:rgba(224,238,231,.5);flex-shrink:0;
   }
   .period-chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
-  /* Não selecionado: pílula visível e sóbria. Selecionado: claro, com anel */
+  /* Contraste forte, sem depender de opacidade/blur para ler a diferença.
+     Não selecionado: contorno fino, sem preenchimento (fantasma).
+     Selecionado: preenchimento SÓLIDO branco + borda grossa colorida. */
   .period-chip{
-    background:rgba(224,238,231,.09);border:1px solid rgba(224,238,231,.16);
-    color:rgba(224,238,231,.72);font-family:inherit;font-size:10.5px;font-weight:500;
+    background:transparent;border:1px solid rgba(224,238,231,.35);
+    color:rgba(224,238,231,.75);font-family:inherit;font-size:10.5px;font-weight:600;
     padding:5px 12px;border-radius:50px;cursor:pointer;letter-spacing:.4px;
-    transition:all .15s;white-space:nowrap;
+    transition:all .12s;white-space:nowrap;
   }
   .period-chip:hover{
-    background:rgba(224,238,231,.16);color:var(--mint);
-    border-color:rgba(224,238,231,.32);
+    border-color:var(--mint);color:var(--mint);
   }
   .period-chip.active{
-    background:var(--mint);color:var(--navy);
-    border-color:var(--mint);font-weight:700;
-    box-shadow:0 0 0 2px rgba(47,143,110,.65), 0 0 10px rgba(47,143,110,.35);
+    background:#FFFFFF;color:var(--navy);
+    border:3px solid #2FD9B8;font-weight:800;
+    padding:4px 11px;
   }
   .period-chip.active:hover{
-    background:#fff;border-color:#fff;color:var(--navy);
+    border-color:#2FD9B8;color:var(--navy);
   }
   .period-chip.shortcut{
-    background:rgba(168,204,168,.12);color:rgba(168,204,168,.8);
-    border-color:rgba(168,204,168,.28);font-weight:600;
+    background:transparent;border:1px solid rgba(168,204,168,.5);
+    color:rgba(168,204,168,.9);font-weight:600;
   }
   .period-chip.shortcut:hover{
-    background:rgba(168,204,168,.22);color:var(--mint);
-    border-color:rgba(168,204,168,.48);
+    border-color:var(--mint);color:var(--mint);
   }
   .period-chip.shortcut.active{
-    background:var(--sage);color:var(--navy);
-    border-color:var(--sage);
-    box-shadow:0 0 0 2px rgba(47,143,110,.65), 0 0 10px rgba(47,143,110,.3);
+    background:#FFFFFF;color:var(--navy);
+    border:3px solid #2FD9B8;font-weight:800;
+    padding:4px 11px;
   }
 
   .period-more-btn{
@@ -928,30 +928,34 @@
      PERÍODO ESTILO G5 — cards maiores
      ============================================================ */
   .g5-chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+  /* Contraste sólido: não selecionado = contorno fantasma; selecionado = fundo
+     branco + borda grossa colorida. Sem depender de opacidade/blur sutil. */
   .g5-chip{
-    background:var(--mint);border:1.5px solid var(--mint-dark);
-    color:var(--navy);font-family:inherit;font-size:11.5px;font-weight:600;
+    background:transparent;border:1.5px solid rgba(224,238,231,.35);
+    color:rgba(224,238,231,.75);font-family:inherit;font-size:11.5px;font-weight:600;
     padding:6px 16px;border-radius:24px;cursor:pointer;letter-spacing:.2px;
     transition:all .18s ease;white-space:nowrap;user-select:none;
     min-width:78px;text-align:center;display:inline-flex;justify-content:center;align-items:center;
   }
-  .g5-chip:hover{border-color:var(--sage);background:#fff;}
+  .g5-chip:hover{border-color:var(--mint);color:var(--mint);}
   .g5-chip.active{
-    background:var(--navy);border-color:var(--navy);color:var(--mint);font-weight:700;
-    box-shadow:0 2px 8px rgba(1,30,60,.28);
+    background:#FFFFFF;border:3px solid #2FD9B8;color:var(--navy);font-weight:800;
+    padding:4.5px 14.5px;
   }
   .g5-ranges{display:flex;gap:7px;align-items:center;margin-left:10px;
     padding-left:16px;border-left:1px solid rgba(224,238,231,.18);}
   .g5-range{
-    background:var(--mint);border:1.5px solid var(--mint-dark);
-    color:var(--navy);font-family:inherit;font-size:11.5px;font-weight:600;
+    background:transparent;border:1.5px solid rgba(168,204,168,.5);
+    color:rgba(168,204,168,.9);font-family:inherit;font-size:11.5px;font-weight:600;
     padding:6px 16px;border-radius:24px;cursor:pointer;letter-spacing:.2px;
     transition:all .18s ease;white-space:nowrap;user-select:none;
     min-width:78px;text-align:center;display:inline-flex;justify-content:center;align-items:center;
   }
-  .g5-range:hover{border-color:var(--sage);background:#fff;}
-  .g5-range.active{background:var(--navy);border-color:var(--navy);color:var(--mint);font-weight:700;
-    box-shadow:0 2px 8px rgba(1,30,60,.28);}
+  .g5-range:hover{border-color:var(--mint);color:var(--mint);}
+  .g5-range.active{
+    background:#FFFFFF;border:3px solid #2FD9B8;color:var(--navy);font-weight:800;
+    padding:4.5px 14.5px;
+  }
 
 /* ── MODAL (drill-down / popup por linha do DFC) ──────────────────── */
 .modal-overlay{position:fixed;inset:0;background:rgba(1,30,60,.72);backdrop-filter:blur(3px);z-index:500;display:none;align-items:center;justify-content:center;padding:24px}
