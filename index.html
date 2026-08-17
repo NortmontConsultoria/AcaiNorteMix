@@ -1067,6 +1067,20 @@ table.dre tr.row-drill:hover .drill-hint{opacity:.85}
   #google-btn-container.login-ocupado{opacity:.4;pointer-events:none;}
 
 
+  /* ===== Aviso: dados ao vivo não carregaram, mostrando o embutido ===== */
+  .aviso-fallback{
+    background:#C58B2A;color:var(--navy);
+    padding:9px 24px;font-size:11.5px;font-weight:600;letter-spacing:.2px;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    text-align:center;position:sticky;top:0;z-index:850;
+  }
+  .aviso-fallback button{
+    background:var(--navy);color:#fff;border:none;padding:4px 12px;
+    border-radius:50px;font-family:inherit;font-size:10.5px;font-weight:700;
+    cursor:pointer;white-space:nowrap;
+  }
+
+
   /* ===== Inadimplência — badges de ação ===== */
   .np-badge{display:inline-block;padding:3px 9px;border-radius:3px;font-size:10.5px;
     font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;}
@@ -1715,8 +1729,9 @@ function chaveMes(ano, mesExtenso) {
 // getTudo() → monta MESES / SERIES / METAS / __ABAS_POR_MES__
 // =============================================================================
 // Sem timeout, um backend lento (cold start do Apps Script) prende a tela
-// indefinidamente. 9s cobre o cold start normal sem deixar o usuário esperando
-// demais; se estourar, cai no catch de quem chamou e segue com o embutido.
+// indefinidamente. O backend lê ~19 abas da planilha, algumas com milhares de
+// linhas, então 25s dá folga pro cold start real sem travar pra sempre. Se
+// estourar, cai no catch de quem chamou e mostra o embutido, com aviso visível.
 function fetchComTimeout(url, ms) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -1724,7 +1739,7 @@ function fetchComTimeout(url, ms) {
 }
 
 async function carregarDadosAoVivo() {
-  const resp = await fetchComTimeout(BACKEND_URL + '?action=getTudo', 9000);
+  const resp = await fetchComTimeout(BACKEND_URL + '?action=getTudo', 25000);
   const json = await resp.json();
   if (!json.ok) throw new Error(json.erro || 'getTudo retornou ok:false');
   window.__ULTIMO_GETTUDO__ = json; // debug: inspecionar no console se precisar
@@ -2357,12 +2372,12 @@ const Login = {
   entrarNoApp() {
     let p;
     try { p = carregarDadosAoVivo(); }
-    catch (e) { console.error('carregarDadosAoVivo falhou:', e); showApp(); return Promise.resolve(); }
-    if (!p || typeof p.then !== 'function') { showApp(); return Promise.resolve(); }
+    catch (e) { console.error('carregarDadosAoVivo falhou:', e); showApp(true); return Promise.resolve(); }
+    if (!p || typeof p.then !== 'function') { showApp(true); return Promise.resolve(); }
     return p.then(() => showApp())
       .catch(err => {
         console.error('Falha ao buscar dados ao vivo, usando JSON estático embutido:', err);
-        showApp();
+        showApp(true);
       });
   }
 };
@@ -2421,12 +2436,26 @@ function setProdTopN(n){
   });
 }
 
-function showApp(){
+function showApp(fallback){
   document.body.classList.add('authed');
+  if (fallback) mostrarAvisoFallback();
   initPeriodChips();
   showMainTab('resumo');
   window.addEventListener('load', adjustHeaderOffsets);
   setTimeout(adjustHeaderOffsets, 300);
+}
+
+// Mostra uma faixa no topo quando os dados são o embutido no arquivo (não os
+// da planilha ao vivo). Sem isso, um backend lento ou fora do ar faz o
+// dashboard parecer normal mostrando números desatualizados sem aviso nenhum.
+function mostrarAvisoFallback(){
+  if (document.querySelector('.aviso-fallback')) return;
+  const b = document.createElement('div');
+  b.className = 'aviso-fallback';
+  b.innerHTML = '⚠ Não consegui buscar os dados mais recentes da planilha. '
+    + 'Mostrando a última versão salva no arquivo, que pode estar desatualizada.'
+    + '<button onclick="location.reload()">Tentar de novo</button>';
+  document.body.insertBefore(b, document.body.firstChild);
 }
 document.addEventListener('DOMContentLoaded', () => Login.init());
 
