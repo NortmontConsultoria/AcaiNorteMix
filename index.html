@@ -2370,14 +2370,14 @@ function renderFinOrcamento(){
 
   /* --- gráficos -------------------------------------------------------- */
   h += '<h3 class="section-title">Receita e curva de caixa</h3>';
-  h += '<div class="grid-2" style="margin-bottom:36px;">';
-  h += '<div class="chart-card light"><div class="chart-card-title">Receita bruta · realizado × projetado</div>'
-     + '<div class="chart-card-sub">Escuro: fechado na DRE · Claro: projetado</div>'
-     + '<div style="position:relative;height:340px;"><canvas id="chOrcRec"></canvas></div></div>';
-  h += '<div class="chart-card light"><div class="chart-card-title">Saldo de caixa projetado</div>'
-     + '<div class="chart-card-sub">Linha tracejada: capital de giro mínimo ('+fmtBRLk(ncg)+')</div>'
-     + '<div style="position:relative;height:340px;"><canvas id="chOrcCx"></canvas></div></div>';
-  h += '</div>';
+  h += '<div class="chart-card light" style="margin-bottom:24px;">'
+     + '<div class="chart-card-title">Receita bruta · realizado × projetado</div>'
+     + '<div class="chart-card-sub">Escuro: fechado na DRE · Claro: projetado a partir das premissas</div>'
+     + '<div style="position:relative;height:420px;"><canvas id="chOrcRec"></canvas></div></div>';
+  h += '<div class="chart-card light" style="margin-bottom:36px;">'
+     + '<div class="chart-card-title">Saldo de caixa projetado</div>'
+     + '<div class="chart-card-sub">Linha tracejada: capital de giro mínimo de '+fmtBRLk(ncg)+'</div>'
+     + '<div style="position:relative;height:420px;"><canvas id="chOrcCx"></canvas></div></div>';
   h += '<hr class="np-divider">';
 
   /* --- fluxo de caixa -------------------------------------------------- */
@@ -2434,21 +2434,27 @@ function buildFinOrcamentoCharts(){
   const P = R.P, proj = R.proj;
   const ano = proj[0].split('/')[1];
 
-  // Receita: realizado (DRE) + projetado, na ordem do ano
+  // Receita: uma única série, colorida por situação. Duas séries lado a lado
+  // deixavam as barras estreitas demais e os rótulos colidiam.
   const ctxR = document.getElementById('chOrcRec');
   if (ctxR){
     const abrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const doAno = abrev.map(a => a+'/'+ano);
-    const real = doAno.map(m => (SERIES.receita_bruta[m] > 0) ? SERIES.receita_bruta[m] : null);
-    const prj  = doAno.map(m => (P[m] ? P[m].rb : null));
+    const ehReal = doAno.map(m => SERIES.receita_bruta[m] > 0);
+    const valores = doAno.map((m,i) => ehReal[i] ? SERIES.receita_bruta[m] : (P[m] ? P[m].rb : null));
+    const optsR = nortChartBaseOpts(function(v){ return fmtBRLk(v); });
+    optsR.plugins.legend.display = false;   // a legenda está no subtítulo do card
+    optsR.plugins.tooltip.callbacks = {
+      label: c => (ehReal[c.dataIndex] ? 'Realizado: ' : 'Projetado: ') + fmtBRL(c.raw)
+    };
     STATE.charts.orcRec = new Chart(ctxR, {
       type:'bar',
-      data:{ labels: abrev, datasets:[
-        {label:'Realizado (DRE)', data:real, backgroundColor:'#0F4245', borderRadius:4},
-        {label:'Projetado', data:prj, backgroundColor:'#A8CCA8', borderRadius:4}
-      ]},
-      options: nortChartBaseOpts(function(v){ return fmtBRLk(v); }),
-      plugins: [makeLabelPlugin(function(v){ return fmtBRLk(v); }, {font:'700 9px Montserrat,sans-serif'})]
+      data:{ labels: doAno, datasets:[{
+        label:'Receita bruta', data: valores, borderRadius:4,
+        backgroundColor: ehReal.map(r => r ? '#0F4245' : '#A8CCA8')
+      }]},
+      options: optsR,
+      plugins: [makeLabelPlugin(function(v){ return fmtBRLk(v); }, {font:'700 10px Montserrat,sans-serif'})]
     });
   }
 
@@ -2466,7 +2472,12 @@ function buildFinOrcamentoCharts(){
          borderColor:'#8f2a2a', borderDash:[5,4], borderWidth:2, pointRadius:0, fill:false}
       ]},
       options: nortChartBaseOpts(function(v){ return fmtBRLk(v); }),
-      plugins: [makePointLabelPlugin(function(v){ return fmtBRLk(v); })]
+      // a linha do piso é constante: rotular todos os pontos empilhava
+      // cinco vezes "R$ 80,0 mil" por cima dos rótulos do saldo
+      plugins: [makePointLabelPlugin(function(v, ds){
+        if (ds && ds.label && ds.label.indexOf('Capital de giro') >= 0) return '';
+        return fmtBRLk(v);
+      })]
     });
   }
 }
@@ -3485,10 +3496,10 @@ function renderComFaturamento(){
         pj.anoAntL+' fechou em '+fmtBRLk(pj.totalAnoAnterior), 'neu');
       html += '</div>';
       html += '<div class="chart-card light" style="margin-bottom:16px;">';
-      html += '<div class="chart-card-title">'+pj.anoAntL+' × '+pj.anoL+' realizado × '+pj.anoL+' projetado</div>';
-      html += '<div class="chart-card-sub">Cinza: '+pj.anoAntL+' (base da projeção) · Escuro: '+pj.anoL
-            + ' realizado · Claro: '+pj.anoL+' projetado</div>';
-      html += '<div style="position:relative;height:400px;"><canvas id="chProjecaoAno"></canvas></div></div>';
+      html += '<div class="chart-card-title">Faturamento '+pj.anoL+' · realizado × projetado</div>';
+      html += '<div class="chart-card-sub">Escuro: fechado · Claro: projetado sobre '+pj.anoAntL
+            + ' com o crescimento de '+fmtPctSim(pj.crescimento*100)+'</div>';
+      html += '<div style="position:relative;height:420px;"><canvas id="chProjecaoAno"></canvas></div></div>';
       html += '<div class="chart-card light" style="margin-bottom:24px;padding:0;overflow:hidden;">';
       html += '<div class="chart-card-title" style="padding:16px 18px 4px;">Detalhe da projeção</div>';
       html += '<div style="overflow-x:auto;"><table class="abc-table">';
@@ -4432,21 +4443,28 @@ function buildComFaturamentoCharts(){
   if (ctxProj){
     const pj = projecaoAnualYoY();
     if (pj){
+      // Realizado e projetado nunca coexistem no mesmo mês, então uma série só,
+      // colorida por situação, dá barras de largura total e rótulos sem colisão.
       const labels = pj.mesesAno.map(function(m){ return m.split('/')[0]; });
-      const parM = function(m){ return m.replace('/'+pj.ano, '/'+pj.anoAnt); };
-      const serieAnt  = pj.mesesAno.map(function(m){ return SERIES.faturamento[parM(m)] || null; });
-      const serieReal = pj.mesesAno.map(function(m){ return pj.realizados.indexOf(m)>=0 ? SERIES.faturamento[m] : null; });
-      const serieProj = pj.mesesAno.map(function(m){ return pj.futuros.indexOf(m)>=0 ? pj.projData[m] : null; });
+      const ehReal = pj.mesesAno.map(function(m){ return pj.realizados.indexOf(m) >= 0; });
+      const valores = pj.mesesAno.map(function(m, i){
+        return ehReal[i] ? (SERIES.faturamento[m] || null) : (pj.projData[m] || null);
+      });
+      const optsPj = nortChartBaseOpts(function(v){ return fmtBRLk(v); });
+      optsPj.plugins.legend.display = false;   // a legenda está no subtítulo do card
+      optsPj.plugins.tooltip.callbacks = {
+        label: function(c){
+          return (ehReal[c.dataIndex] ? 'Realizado: ' : 'Projetado: ') + fmtBRL(c.raw);
+        }
+      };
       STATE.charts.projecaoAno = new Chart(ctxProj, {
         type:'bar',
-        data:{ labels: labels, datasets:[
-          {label:pj.anoAntL, data:serieAnt, backgroundColor:'#c8dccf', borderRadius:4},
-          {label:pj.anoL+' realizado', data:serieReal, backgroundColor:'#0F4245', borderRadius:4},
-          {label:pj.anoL+' projetado', data:serieProj, backgroundColor:'rgba(15,66,69,.30)',
-           borderColor:'#0F4245', borderWidth:{top:2,left:2,right:2,bottom:0}, borderRadius:4}
-        ]},
-        options: nortChartBaseOpts(function(v){ return fmtBRLk(v); }),
-        plugins: [makeLabelPlugin(function(v){ return fmtBRLk(v); }, {font:'700 9px Montserrat,sans-serif'})]
+        data:{ labels: labels, datasets:[{
+          label: 'Faturamento', data: valores, borderRadius:4,
+          backgroundColor: ehReal.map(function(r){ return r ? '#0F4245' : '#A8CCA8'; })
+        }]},
+        options: optsPj,
+        plugins: [makeLabelPlugin(function(v){ return fmtBRLk(v); }, {font:'700 10px Montserrat,sans-serif'})]
       });
     }
   }
