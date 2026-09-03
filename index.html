@@ -1520,6 +1520,131 @@ const DRE_MAP = {
 // Nota: "venda" (usado no __DATA__ estático, igual a receita_bruta) NÃO existe
 // como linha própria no DRE — é um alias. Preenchido logo abaixo por cópia.
 
+/* =============================================================================
+ * ORÇAMENTO 2026
+ * -----------------------------------------------------------------------------
+ * Premissas vêm de 3 abas da planilha (Orçamento Parâmetros / Mensal / Itens).
+ * O REALIZADO não é copiado de lugar nenhum: sai de SERIES.receita_bruta, que
+ * é a própria DRE. Por isso o corte entre realizado e projetado anda sozinho —
+ * quando um mês é fechado no financeiro, ele sai da projeção sem ninguém mexer
+ * no código nem nas premissas.
+ * =============================================================================
+ */
+const ORC = {
+  ativo: false,
+  params: {},        // { chaveNormalizada: valor }
+  mensal: {},        // { 'Ago/26': {receita, folha, dist} }
+  itens: [],         // [{mes, tipo, item, valorTotal, valorMes, obs}]
+
+  reset(){ this.ativo = false; this.params = {}; this.mensal = {}; this.itens = []; },
+
+  _norm(s){
+    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().replace(/[^a-z0-9]/g,'');
+  },
+
+  carregar(bParams, bMensal, bItens){
+    this.reset();
+    if (!bParams || !bParams.n || !bMensal || !bMensal.n) return;   // abas ainda não criadas
+
+    Colunar.paraLinhas(bParams).forEach(l => {
+      const k = this._norm(l['Parâmetro']);
+      const bruto = l['Valor'];
+      this.params[k] = (l['Unidade'] === 'mês') ? String(bruto).trim() : _num(bruto);
+    });
+
+    Colunar.paraLinhas(bMensal).forEach(l => {
+      const m = String(l['Mês']).trim();
+      if (!m) return;
+      this.mensal[m] = {
+        receita: _num(l['Receita Projetada (R$)']),
+        folha:   _num(l['Folha Extra (R$)']),
+        dist:    _num(l['Distribuição de Lucros (R$)'])
+      };
+    });
+
+    if (bItens && bItens.n) {
+      Colunar.paraLinhas(bItens).forEach(l => {
+        this.itens.push({
+          mes: String(l['Mês']).trim(),
+          tipo: String(l['Tipo']).trim(),
+          item: String(l['Item']).trim(),
+          valorTotal: _num(l['Valor Total (R$)']),
+          valorMes: _num(l['Valor no Mês (R$)']),
+          obs: String(l['Observação'] || '').trim()
+        });
+      });
+    }
+    this.ativo = Object.keys(this.mensal).length > 0;
+  },
+
+  p(chave, padrao){
+    const v = this.params[this._norm(chave)];
+    return (v === undefined || v === null) ? (padrao || 0) : v;
+  },
+
+  /* Um mês é REALIZADO quando já tem Receita Bruta na DRE. Todo o resto do
+     ano orçado é PROJETADO. É isto que faz o corte andar sozinho. */
+  realizado(mes){ return (SERIES.receita_bruta && SERIES.receita_bruta[mes] > 0); },
+
+  /* Calcula a projeção mês a mês e a curva de caixa acumulada. */
+  calcular(){
+    if (!this.ativo) return null;
+    const ordem = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const chaveOrdem = m => ordem.indexOf(m.split('/')[0]);
+    const orcados = Object.keys(this.mensal).sort((a,b) => chaveOrdem(a) - chaveOrdem(b));
+    const proj = orcados.filter(m => !this.realizado(m));
+    const jaFechados = orcados.filter(m => this.realizado(m));
+    if (!proj.length) return {proj:[], jaFechados, P:{}, ordem:orcados};
+
+    const cmvPct = this.p('CMV (% da receita bruta)');
+    const impPct = this.p('Impostos (% da receita bruta)');
+    const admF = this.p('Despesas Administrativas — fixo');
+    const admP = this.p('Despesas Administrativas — % receita');
+    const pesF = this.p('Pessoal — fixo');
+    const pesP = this.p('Pessoal — % receita');
+    const mktF = this.p('Marketing — fixo');
+    const mktP = this.p('Marketing — % receita');
+    const finP = this.p('Despesas Financeiras — % receita');
+    const emp  = this.p('Parcela mensal de empréstimo');
+    const pronampe = this.p('Entrada do Pronampe');
+    const mesPronampe = String(this.p('Mês de entrada do Pronampe', '')).trim();
+
+    const somaItens = (mes, tipo) => this.itens
+      .filter(i => i.mes === mes && (!tipo || i.tipo === tipo))
+      .reduce((s,i) => s + i.valorMes, 0);
+
+    const P = {};
+    proj.forEach(m => {
+      const mm = this.mensal[m];
+      const rb  = mm.receita;
+      const imp = rb * impPct / 100;
+      const rl  = rb - imp;
+      const cmv = rb * cmvPct / 100;
+      const lb  = rl - cmv;
+      const adm = admF + rb * admP / 100;
+      const pes = pesF + rb * pesP / 100 + mm.folha;
+      const mkt = mktF + rb * mktP / 100;
+      const fin = rb * finP / 100;
+      const dop = adm + pes + mkt + fin;
+      const lo  = lb - dop;
+      const capex = somaItens(m, 'Investimento');
+      const estoq = somaItens(m, 'Estoque');
+      const rnop  = (m === mesPronampe) ? pronampe : 0;
+      const dist  = mm.dist;
+      const cxOper = rb - imp - estoq - dop;
+      const ger = cxOper + rnop - capex - emp - dist;
+      P[m] = {rb, imp, rl, cmv, lb, adm, pes, mkt, fin, dop, lo,
+              capex, estoq, emp, rnop, dist, cxOper, ger};
+    });
+
+    // saldo de caixa encadeado a partir do saldo inicial informado
+    let saldo = this.p('Saldo inicial de caixa');
+    proj.forEach(m => { P[m].saldoIni = saldo; saldo += P[m].ger; P[m].saldoFim = saldo; });
+    return {proj, jaFechados, P, ordem:orcados};
+  }
+};
+
 function remapDRE(blocoDRE) {
   const meses = blocoDRE.meses;
   const series = {};
@@ -1854,6 +1979,11 @@ async function carregarDadosAoVivo() {
     else { console.warn('[getTudo] abas de inadimplência ausentes — usando dado embutido'); }
   } catch (e) { console.warn('[getTudo] falha no remap de inadimplência, mantendo embutido:', e.message); }
 
+  // ---- Orçamento 2026 (abas opcionais; se não existirem, a sub-aba some) ---
+  try {
+    ORC.carregar(dados.orcamentoParametros, dados.orcamentoMensal, dados.orcamentoItens);
+  } catch (e) { console.warn('[getTudo] falha no remap do orçamento:', e.message); ORC.reset(); }
+
   console.log('[getTudo] dados ao vivo carregados:', MESES.length, 'meses. Avisos:', (json.avisos || []).length);
 }
 
@@ -2117,6 +2247,228 @@ function renderFinInadimplencia(){
 
   h += '</section></div>';
   return h;
+}
+
+/* ============ FINANCEIRO · SUB-ABA "ORÇAMENTO" ============ */
+function renderFinOrcamento(){
+  let h = '<div class="tab-panel active"><section class="page light">';
+  h += '<div class="section-header"><div>';
+  h += '<div class="pill" style="margin-bottom:18px;color:var(--navy);"><span class="pill-num">02</span> · Financeiro · Orçamento</div>';
+  h += '<h2 class="title-xl">Orçamento<br>e <u>caixa projetado</u></h2>';
+
+  const R = ORC.ativo ? ORC.calcular() : null;
+
+  if (!R) {
+    h += '<p class="lead" style="color:var(--text-on-light-muted);">As premissas do orçamento ainda não foram encontradas na planilha.</p>';
+    h += '</div></div><hr class="np-divider">';
+    h += '<div class="insight-card light" style="border-left:3px solid var(--warning,#f59e0b);">';
+    h += '<div class="insight-label" style="color:var(--warning,#f59e0b);">Premissas não disponíveis</div>';
+    h += '<div class="insight-text">Esta aba lê três abas da planilha: <strong>Orçamento Parâmetros</strong>, '
+       + '<strong>Orçamento Mensal</strong> e <strong>Orçamento Itens</strong>. Enquanto elas não existirem, '
+       + 'ou enquanto o painel estiver rodando com os dados embutidos em vez dos dados ao vivo, não há o que projetar.</div></div>';
+    h += '</section></div>';
+    return h;
+  }
+
+  const P = R.P, proj = R.proj;
+  if (!proj.length) {
+    h += '<p class="lead" style="color:var(--text-on-light-muted);">Todos os meses orçados já foram fechados no financeiro.</p>';
+    h += '</div></div><hr class="np-divider">';
+    h += '<div class="insight-card light"><div class="insight-label">Orçamento encerrado</div>';
+    h += '<div class="insight-text">Os meses ' + R.jaFechados.join(', ') + ' saíram da projeção porque já têm '
+       + 'Receita Bruta lançada na DRE. Para projetar um período novo, acrescente os meses na aba '
+       + '<strong>Orçamento Mensal</strong> da planilha.</div></div>';
+    h += '</section></div>';
+    return h;
+  }
+
+  /* --- números do período --------------------------------------------- */
+  const soma = f => proj.reduce((s,m) => s + f(P[m]), 0);
+  const rbProj  = soma(p => p.rb);
+  const loProj  = soma(p => p.lo);
+  const capex   = soma(p => p.capex);
+  const estoq   = soma(p => p.estoq);
+  const cmvProj = soma(p => p.cmv);
+  const saldoFim = P[proj[proj.length-1]].saldoFim;
+  let minSaldo = Infinity, minMes = proj[0];
+  proj.forEach(m => { if (P[m].saldoFim < minSaldo){ minSaldo = P[m].saldoFim; minMes = m; } });
+  const ncg = ORC.p('Capital de giro mínimo (NCG)');
+
+  // realizado sai da própria DRE — nunca de uma cópia
+  const mesesReal = MESES.filter(m => m.endsWith('/'+proj[0].split('/')[1]) && SERIES.receita_bruta[m] > 0);
+  const rbReal = mesesReal.reduce((s,m) => s + (SERIES.receita_bruta[m]||0), 0);
+
+  h += '<p class="lead" style="color:var(--text-on-light-muted);">Projeção de <strong>'+proj[0]+' a '+proj[proj.length-1]+'</strong>. '
+     + 'O realizado vem da DRE; a projeção, das premissas da planilha. '
+     + (R.jaFechados.length ? 'Os meses '+R.jaFechados.join(', ')+' já foram fechados e saíram da projeção automaticamente. ' : '')
+     + 'Esta aba não segue o seletor de período.</p>';
+  h += '</div></div><hr class="np-divider">';
+
+  /* --- KPIs ------------------------------------------------------------ */
+  h += '<h3 class="section-title">Resumo</h3>';
+  h += '<div class="grid-3" style="margin-bottom:14px;">';
+  h += kpiCardLight('Receita bruta do ano', fmtBRLk(rbReal + rbProj),
+        mesesReal.length+' meses realizados + '+proj.length+' projetados', 'neu');
+  h += kpiCardLight('Resultado operacional projetado', fmtBRLk(loProj),
+        'antes de investimentos', loProj >= 0 ? 'pos' : 'neg');
+  h += kpiCardLight('Caixa ao fim do período', fmtBRLk(saldoFim),
+        'após Pronampe e investimentos', saldoFim >= 0 ? 'pos' : 'neg');
+  h += '</div>';
+  h += '<div class="grid-3" style="margin-bottom:24px;">';
+  h += kpiCardLight('CAPEX projetado', fmtBRLk(capex), 'investimentos do período', 'neu');
+  h += kpiCardLight('Antecipação de estoque', fmtBRLk(estoq), 'desembolso com insumos', 'neu');
+  h += kpiCardLight('Menor saldo do período', fmtBRLk(minSaldo), 'em '+minMes,
+        minSaldo < ncg ? 'neg' : 'pos');
+  h += '</div>';
+
+  /* --- alertas --------------------------------------------------------- */
+  h += '<h3 class="section-title">Alertas</h3>';
+  const alerta = (cor, txt) =>
+    '<div class="insight-card light" style="margin-bottom:10px;border-left:3px solid '+cor+';">'
+    + '<div class="insight-text">'+txt+'</div></div>';
+  const VERM = 'var(--danger,#8f2a2a)', AMAR = 'var(--warning,#f59e0b)', VERD = 'var(--success,#1e6a4f)';
+
+  if (minSaldo < 0) {
+    h += alerta(VERM, '<strong>Caixa negativo em '+minMes+'.</strong> O plano atual leva o saldo a '
+       + fmtBRL(minSaldo)+'. É preciso escalonar a compra de açaí ou adiar parte do CAPEX.');
+  } else if (minSaldo < ncg) {
+    h += alerta(AMAR, '<strong>Caixa abaixo do capital de giro mínimo em '+minMes+'.</strong> O saldo cai para '
+       + fmtBRL(minSaldo)+' contra os '+fmtBRL(ncg)+' definidos como piso. Sem folga para imprevisto no pior mês.');
+  } else {
+    h += alerta(VERD, '<strong>Caixa preservado o período todo.</strong> O menor saldo é '
+       + fmtBRL(minSaldo)+' em '+minMes+', acima do piso de '+fmtBRL(ncg)+'.');
+  }
+
+  // itens de investimento sem valor orçado
+  const porItem = {};
+  ORC.itens.filter(i => i.tipo === 'Investimento' && proj.indexOf(i.mes) >= 0)
+    .forEach(i => { porItem[i.item] = (porItem[i.item]||0) + i.valorMes; });
+  const pendentes = Object.keys(porItem).filter(k => porItem[k] === 0);
+  if (pendentes.length) {
+    h += alerta(AMAR, '<strong>'+pendentes.length+' itens de investimento sem valor orçado:</strong> '
+       + pendentes.join(', ') + '. Enquanto não entrarem, o CAPEX projetado está subestimado.');
+  }
+
+  /* Quando um mês orçado é fechado, a projeção passa a começar no mês seguinte —
+     mas o "Saldo inicial de caixa" da planilha continua apontando para o mês
+     antigo. Sem este aviso, a curva inteira ficaria errada em silêncio. */
+  if (R.jaFechados.length) {
+    h += alerta(VERM, '<strong>Confira o saldo inicial de caixa.</strong> '
+       + R.jaFechados.join(', ') + ' já foi fechado no financeiro, então a projeção agora começa em '
+       + proj[0] + '. O parâmetro <em>Saldo inicial de caixa</em> na planilha está em '
+       + fmtBRL(ORC.p('Saldo inicial de caixa')) + ' — se ele ainda se refere ao mês antigo, '
+       + 'toda a curva de caixa abaixo está deslocada. Atualize-o para a posição real no primeiro dia de '
+       + proj[0] + '.');
+  }
+
+  if (estoq > cmvProj) {
+    h += alerta(AMAR, '<strong>Descasamento entre compra e consumo:</strong> o desembolso com insumos no período é de '
+       + fmtBRL(estoq)+' contra '+fmtBRL(cmvProj)+' de CMV por competência. A diferença de '
+       + fmtBRL(estoq - cmvProj)+' é estoque que sai do caixa agora e só vira custo depois.');
+  }
+  h += '<hr class="np-divider">';
+
+  /* --- gráficos -------------------------------------------------------- */
+  h += '<h3 class="section-title">Receita e curva de caixa</h3>';
+  h += '<div class="grid-2" style="margin-bottom:36px;">';
+  h += '<div class="chart-card light"><div class="chart-card-title">Receita bruta · realizado × projetado</div>'
+     + '<div class="chart-card-sub">Escuro: fechado na DRE · Claro: projetado</div>'
+     + '<div style="position:relative;height:340px;"><canvas id="chOrcRec"></canvas></div></div>';
+  h += '<div class="chart-card light"><div class="chart-card-title">Saldo de caixa projetado</div>'
+     + '<div class="chart-card-sub">Linha tracejada: capital de giro mínimo ('+fmtBRLk(ncg)+')</div>'
+     + '<div style="position:relative;height:340px;"><canvas id="chOrcCx"></canvas></div></div>';
+  h += '</div>';
+  h += '<hr class="np-divider">';
+
+  /* --- fluxo de caixa -------------------------------------------------- */
+  h += '<h3 class="section-title">Fluxo de caixa projetado</h3>';
+  h += '<p class="lead" style="margin-bottom:20px;color:var(--text-on-light-muted);">Parte da receita bruta e desconta os '
+     + 'desembolsos efetivos do período, incluindo a antecipação de estoque e o CAPEX.</p>';
+
+  const LINHAS = [
+    ['Saldo inicial',                    m => P[m].saldoIni,  'row-major',  'ini'],
+    ['(+) Receita bruta',                m => P[m].rb,        ''],
+    ['(−) Impostos',                     m => -P[m].imp,      'row-sub'],
+    ['(−) Compra de estoque e insumos',  m => -P[m].estoq,    'row-sub'],
+    ['(−) Despesas operacionais',        m => -P[m].dop,      'row-sub'],
+    ['(=) CAIXA OPERACIONAL',            m => P[m].cxOper,    'row-result'],
+    ['(+) Pronampe líquido',             m => P[m].rnop,      ''],
+    ['(−) Investimentos (CAPEX)',        m => -P[m].capex,    ''],
+    ['(−) Serviço da dívida',            m => -P[m].emp,      ''],
+    ['(−) Distribuição de lucros',       m => -P[m].dist,     ''],
+    ['(=) GERAÇÃO DE CAIXA',             m => P[m].ger,       'row-result'],
+    ['SALDO FINAL',                      m => P[m].saldoFim,  'row-major',  'fim']
+  ];
+
+  h += '<div class="dre-wrap"><table class="dre"><thead><tr><th class="cat-th">Fluxo de caixa</th>';
+  proj.forEach(m => h += '<th>'+m+'</th>');
+  h += '<th class="accum">Total</th></tr></thead><tbody>';
+  LINHAS.forEach(([lbl, fn, cls, tipoTot]) => {
+    const vals = proj.map(fn);
+    // saldos são posição, não fluxo: não podem ser somados na coluna Total
+    const tot = tipoTot === 'ini' ? vals[0]
+              : tipoTot === 'fim' ? vals[vals.length-1]
+              : vals.reduce((a,b) => a+b, 0);
+    h += '<tr class="'+(cls||'')+'"><td class="cat-td">'+lbl+'</td>';
+    vals.forEach(v => h += '<td class="'+(v<0?'neg':(v===0?'muted':''))+'">'+(v===0?'-':fmtBRL(v))+'</td>');
+    h += '<td class="accum">'+fmtBRL(tot)+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  h += '<div style="margin-top:20px;padding:14px 18px;background:rgba(1,30,60,.04);border-radius:6px;font-size:12px;color:var(--text-on-light-muted);line-height:1.6;">';
+  h += '<strong style="color:var(--navy);">Como ler:</strong> Saldo inicial e Saldo final são posição, não fluxo — '
+     + 'por isso a coluna Total traz o saldo de abertura do primeiro mês e o de fechamento do último, e não uma soma. '
+     + 'As premissas ficam nas abas <strong>Orçamento Parâmetros</strong>, <strong>Orçamento Mensal</strong> e '
+     + '<strong>Orçamento Itens</strong> da planilha; alterá-las lá atualiza esta tela. '
+     + 'Um mês sai da projeção assim que ganha Receita Bruta na DRE.</div>';
+
+  h += '<div class="np-footer"><span>Nortmont · Consultoria em Negócios</span><span>Açaí Norte Mix · Fechamento Mensal</span></div>';
+  h += '</section></div>';
+  return h;
+}
+
+function buildFinOrcamentoCharts(){
+  if (!ORC.ativo) return;
+  const R = ORC.calcular();
+  if (!R || !R.proj.length) return;
+  const P = R.P, proj = R.proj;
+  const ano = proj[0].split('/')[1];
+
+  // Receita: realizado (DRE) + projetado, na ordem do ano
+  const ctxR = document.getElementById('chOrcRec');
+  if (ctxR){
+    const abrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const doAno = abrev.map(a => a+'/'+ano);
+    const real = doAno.map(m => (SERIES.receita_bruta[m] > 0) ? SERIES.receita_bruta[m] : null);
+    const prj  = doAno.map(m => (P[m] ? P[m].rb : null));
+    STATE.charts.orcRec = new Chart(ctxR, {
+      type:'bar',
+      data:{ labels: abrev, datasets:[
+        {label:'Realizado (DRE)', data:real, backgroundColor:'#0F4245', borderRadius:4},
+        {label:'Projetado', data:prj, backgroundColor:'#A8CCA8', borderRadius:4}
+      ]},
+      options: nortChartBaseOpts(function(v){ return fmtBRLk(v); }),
+      plugins: [makeLabelPlugin(function(v){ return fmtBRLk(v); }, {font:'700 9px Montserrat,sans-serif'})]
+    });
+  }
+
+  // Curva de caixa + piso de capital de giro
+  const ctxC = document.getElementById('chOrcCx');
+  if (ctxC){
+    const ncg = ORC.p('Capital de giro mínimo (NCG)');
+    STATE.charts.orcCx = new Chart(ctxC, {
+      type:'line',
+      data:{ labels: proj, datasets:[
+        {label:'Saldo de caixa', data: proj.map(m => P[m].saldoFim),
+         borderColor:'#0F4245', backgroundColor:'rgba(15,66,69,.12)', fill:true, tension:.3,
+         pointRadius:5, pointBackgroundColor:'#fff', pointBorderWidth:2},
+        {label:'Capital de giro mínimo', data: proj.map(() => ncg),
+         borderColor:'#8f2a2a', borderDash:[5,4], borderWidth:2, pointRadius:0, fill:false}
+      ]},
+      options: nortChartBaseOpts(function(v){ return fmtBRLk(v); }),
+      plugins: [makePointLabelPlugin(function(v){ return fmtBRLk(v); })]
+    });
+  }
 }
 
 function buildFinInadimplenciaCharts(){
@@ -2679,7 +3031,8 @@ const MAIN_TABS_CFG = {
   fin:    { label:'Financeiro', subs:[
     {id:'dre',         label:'DFC'},
     {id:'indicadores', label:'Indicadores'},
-    {id:'inadimplencia', label:'Inadimplência'}
+    {id:'inadimplencia', label:'Inadimplência'},
+    {id:'orcamento',   label:'Orçamento'}
   ]},
   com:    { label:'Comercial', subs:[
     {id:'faturamento',  label:'Faturamento'},
@@ -4732,6 +5085,7 @@ function render(){
     case 'dre': root.innerHTML = renderFinDFC(); bindDRE(); break;
     case 'indicadores': root.innerHTML = renderFinIndicadores(); setTimeout(buildFinIndicadoresCharts, 80); break;
     case 'inadimplencia': root.innerHTML = renderFinInadimplencia(); setTimeout(buildFinInadimplenciaCharts, 80); break;
+    case 'orcamento': root.innerHTML = renderFinOrcamento(); setTimeout(buildFinOrcamentoCharts, 80); break;
     case 'faturamento': root.innerHTML = renderComFaturamento(); setTimeout(buildComFaturamentoCharts, 80); break;
     case 'clientes': root.innerHTML = renderComClientes(); setTimeout(buildComClientesCharts, 80); break;
     case 'padraoSemanal': root.innerHTML = renderComPadraoSemanal(); setTimeout(buildComPadraoSemanalCharts, 80); break;
