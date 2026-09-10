@@ -1423,99 +1423,113 @@ function _pct(v) { return _num(v) * 100; }
 // DRE_MAP — CONFIRMADO contra a aba "DRE" real (69 linhas, checado 1:1)
 // =============================================================================
 const DRE_MAP = {
-  'Receita Bruta': 'receita_bruta',
-  'Impostos': 'impostos',
-  'Simples Nacional': 'simples',
+  'RECEITA BRUTA': 'receita_bruta',
+  'VENDA': 'venda',
+  'COMISSÃO MEXILETA': 'comissao_mexileta',
+  'IMPOSTOS': 'impostos',
   'ICMS': 'imp_icms',
   'ISSQN': 'imp_issqn',
+  'Simples Nacional': 'simples',
   'IRRF': 'imp_irrf',
   'PIS': 'imp_pis',
   'COFINS': 'imp_cofins',
-  'CSLL ou IR Retido': 'imp_csll_ir',
-  'Saída Antecipação Inadimplida': 'imp_saida_antec',
-  'Deduções': 'deducoes',
-  'Reembolso Clientes': 'ded_reembolso',
-  'Permuta': 'ded_permuta',
-  'Taxas de Cartões': 'ded_taxas_cartoes',
-  'Outras Deduções': 'ded_outras',
-  'Receita Líquida': 'receita_liquida',
+  'CSLL ou IR RETIDO': 'imp_csll_ir',
+  'SAÍDA ANTECIPAÇÃO INADIMPLIDA': 'imp_saida_antec',
+  'DEDUÇÕES': 'deducoes',
+  'REEMBOLSO CLIENTES': 'ded_reembolso',
+  'PERMUTA': 'ded_permuta',
+  'TAXAS DE CARTÕES': 'ded_taxas_cartoes',
+  'OUTRAS DEDUÇÕES': 'ded_outras',
+  'RECEITA LÍQUIDA': 'receita_liquida',
   'CMV': 'cmv',
-  'Matérias-Primas': 'cmv_materias_primas',
-  'Embalagens': 'cmv_embalagens',
-  'Combustível para Entrega': 'cmv_combustivel',
-  'Fretes': 'cmv_fretes',
-  'Pedágio': 'cmv_pedagio',
-  'Serviços de Terceiros': 'cmv_servicos_terceiros',
-  'Outros Insumos': 'cmv_outros_insumos',
-  'Lucro Bruto': 'lucro_bruto',
-  'Despesas Operacionais': 'desp_operacionais',
-  'Despesas Administrativas': 'desp_administrativas',
-  'Aluguel': 'adm_aluguel',
-  'Água': 'adm_agua',
-  'Energia Elétrica': 'adm_energia',
-  'Internet': 'adm_internet',
-  'Telefone': 'adm_telefone',
-  'Consultoria': 'adm_consultoria',
-  'Assessoria Contábil': 'adm_contabil',
-  'Assessoria Jurídica': 'adm_juridica',
-  'Sistemas': 'adm_sistemas',
-  'Combustível (Administrativo)': 'adm_combustivel',
-  'Manutenção de Veículos': 'adm_manut_veiculo',
-  'Manutenção da Fábrica': 'adm_manut_fabrica',
-  'Manutenções Gerais': 'adm_manut_gerais',
-  'Materiais de Escritório': 'adm_escritorio',
-  'Prestação de Serviços Terceiros': 'adm_terceiros',
-  'Seguros': 'adm_seguros',
-  'Uniformes e EPIs': 'adm_uniformes',
-  'Alimentação': 'adm_alimentacao',
+  'COMBUSTÍVEL PARA ENTREGA': 'cmv_combustivel',
+  'EMBALAGENS': 'cmv_embalagens',
+  'FRETES': 'cmv_fretes',
+  'MATÉRIAS PRIMAS': 'cmv_materias_primas',
+  'SERVIÇOS DE TERCEIROS': 'cmv_servicos_terceiros',
+  'PEDÁGIO': 'cmv_pedagio',
+  'OUTROS INSUMOS': 'cmv_outros_insumos',
+  'LUCRO BRUTO': 'lucro_bruto',
+  'DESPESAS OPERACIONAIS': 'desp_operacionais',
+  'DESPESAS ADMINISTRATIVAS': 'desp_administrativas',
+  'ÁGUA': 'adm_agua',
+  'ALIMENTAÇÃO': 'adm_alimentacao',
+  'ALUGUEL': 'adm_aluguel',
+  'COMBUSTÍVEL': 'adm_combustivel',
+  'CONSULTORIA': 'adm_consultoria',
+  'ASSESSORIA CONTÁBIL': 'adm_contabil',
+  'ASSESSORIA JURÍDICA': 'adm_juridica',
+  'ENERGIA ELÉTRICA': 'adm_energia',
+  'INTERNET': 'adm_internet',
   'IPTU': 'adm_iptu',
   'IPVA': 'adm_ipva',
-  'Transporte': 'adm_transporte',
-  'Outras Despesas Administrativas': 'adm_outros',
-  'Despesas com Pessoal': 'desp_pessoal',
-  'Salários': 'pes_salario',
-  'Pró-labore': 'pes_prolabore',
-  'Comissões': 'pes_comissoes',
-  'Comissão Vendedor Externo': 'pes_comissao_externo',
-  'Benefícios': 'pes_beneficios',
-  '13º Salário': 'pes_13sal',
-  'Adicional Noturno': 'pes_adic_noturno',
-  'Férias': 'pes_ferias',
+  'MANUTENÇÕES DE EQUIPAMENTOS DA FÁBRICA': 'adm_manut_fabrica',
+  'MANUTENÇÃO VEICULO': 'adm_manut_veiculo',
+  'MANUTENÇÕES GERAIS': 'adm_manut_gerais',
+  'MATERIAIS DE ESCRITÓRIO': 'adm_escritorio',
+  'PRESTAÇÃO DE SERVIÇOS TERCEIROS': 'adm_terceiros',
+  'SEGUROS': 'adm_seguros',
+  'SISTEMAS': 'adm_sistemas',
+  'SOFTWARE DE IA': 'adm_software_ia',
+  'TELEFONE': 'adm_telefone',
+  'TRANSPORTE': 'adm_transporte',
+  'UNIFORMES E MATERIAIS DE PROTEÇÃO': 'adm_uniformes',
+  'OUTROS GASTOS ADMINISTRATIVOS': 'adm_outros',
+  'DESPESAS COM PESSOAL': 'desp_pessoal',
+  '13º SALÁRIO': 'pes_13sal',
+  'ADICIONAL NOTURNO': 'pes_adic_noturno',
+  'BENEFÍCIOS': 'pes_beneficios',
+  'COMISSÕES': 'pes_comissoes',
+  'COMISSÃO VENDEDOR INTERNO': 'pes_comissao_interno',
+  'COMISSÃO VENDEDOR EXTERNO': 'pes_comissao_externo',
+  'FÉRIAS': 'pes_ferias',
   'FGTS': 'pes_fgts',
-  'Hora Extra': 'pes_hora_extra',
+  'HORA EXTRA': 'pes_hora_extra',
   'INSS': 'pes_inss',
-  'IR Retido': 'pes_ir_retido',
-  'Medicina do Trabalho': 'pes_medicina',
-  'Rescisões': 'pes_rescisoes',
-  'Sindicato': 'pes_sindicato',
-  'Outras Despesas com Pessoal': 'pes_outras',
-  'Marketing e Vendas': 'desp_marketing',
-  'Marketing Online': 'mkt_online',
-  'Marketing Offline': 'mkt_offline',
-  'Serviços de Marketing': 'mkt_servicos',
-  'Materiais Gráficos': 'mkt_graficos',
-  'Patrocínio Atleta': 'mkt_atleta',
-  'Eventos': 'mkt_eventos',
-  'Despesas Financeiras': 'desp_financeiras',
-  'Tarifas Bancárias': 'fin_tarifas',
-  'Multas e Juros': 'fin_multas',
-  'IOF': 'fin_iof',
-  'Outras Despesas Bancárias': 'fin_outras_bancarias',
-  'Lucro Operacional': 'lucro_operacional',
-  'Receitas Não Operacionais': 'receitas_nao_op',
-  'Entradas Não Operacionais': 'entradas_nao_op',
-  'Integralização de Capital': 'nop_integralizacao',
-  'Aporte Financeiro': 'nop_aporte',
-  'Investimentos e Provisões': 'invest_provisoes',
-  'Investimento em Equipamento': 'inv_equipamento',
-  'Investimentos Gerais': 'inv_gerais',
-  'Empréstimos': 'inv_emprestimos',
-  'Lucro Antes dos Tributos': 'lucro_antes_trib',
-  'Lucro Líquido': 'lucro_liquido',
-  'Distribuição de Lucros': 'distribuicao_lucros',
-  'Excedente': 'excedente',
-  'Margem de Contribuição (%)': 'margem_contribuicao',
-  'Ponto de Equilíbrio': 'ponto_equilibrio'
+  'IR RETIDO': 'pes_ir_retido',
+  'MEDICINA DO TRABALHO': 'pes_medicina',
+  'PRÓ-LABORE': 'pes_prolabore',
+  'RESCISÕES': 'pes_rescisoes',
+  'SALÁRIO': 'pes_salario',
+  'SINDICATO': 'pes_sindicato',
+  'OUTRAS DESPESAS COM PESSOAL': 'pes_outras',
+  'DESPESAS COM MARKETING E VENDAS': 'desp_marketing',
+  'ANÚNCIO OFFLINE': 'mkt_offline',
+  'ANÚNCIO ONLINE': 'mkt_online',
+  'COMISSÃO SOBRE VENDA (MEXILETA)': 'mkt_comissao_mexileta',
+  'MATERIAIS GRÁFICOS': 'mkt_graficos',
+  'SERVIÇOS DE MARKETING': 'mkt_servicos',
+  'EVENTOS': 'mkt_eventos',
+  'PATROCÍNIO PARA ATLETA': 'mkt_atleta',
+  'DESPESAS FINANCEIRAS': 'desp_financeiras',
+  'IOF (NÃO RELACIONADO A EMPRÉSTIMOS)': 'fin_iof',
+  'MULTAS E JUROS': 'fin_multas',
+  'TARIFAS BANCÁRIAS': 'fin_tarifas',
+  'OUTRAS DESPESAS BANCÁRIAS': 'fin_outras_bancarias',
+  'LUCRO OPERACIONAL': 'lucro_operacional',
+  'RECEITAS NÃO OPERACIONAIS': 'receitas_nao_op',
+  'ENTRADAS NÃO OPERACIONAIS': 'entradas_nao_op',
+  'INTEGRALIZAÇÃO DE CAPITAL': 'nop_integralizacao',
+  'APORTE FINANCEIRO': 'nop_aporte',
+  'INVESTIMENTOS E PROVISÕES': 'invest_provisoes',
+  'INVESTIMENTOS EM EQUIPAMENTO': 'inv_equipamento',
+  'INVESTIMENTO EM TECNOLOGIA': 'inv_tecnologia',
+  'INVESTIMENTOS GERAIS': 'inv_gerais',
+  'EMPRÉSTIMOS': 'inv_emprestimos',
+  'CAPITAL SOCIAL': 'inv_capital_social',
+  'DEPRECIAÇÃO': 'inv_depreciacao',
+  'IOF SOBRE EMPRÉSTIMOS': 'inv_iof_emprestimos',
+  'JUROS SOBRE EMPRÉSTIMOS': 'inv_juros_emprestimos',
+  'PROVISÃO PARA MANUTENÇÕES DE MAQUINÁRIO': 'inv_provisao_manut',
+  'LUCRO ANTES DE TRIBUTAÇÃO': 'lucro_antes_trib',
+  'TRIBUTAÇÃO': 'tributacao',
+  'CSLL': 'trib_csll',
+  'IRPJ': 'trib_irpj',
+  'LUCRO LÍQUIDO': 'lucro_liquido',
+  'DISTRIBUIÇÃO DE LUCROS': 'distribuicao_lucros',
+  'EXCEDENTE': 'excedente',
+  'MARGEM DE CONTRIBUIÇÃO': 'margem_contribuicao',
+  'PONTO DE EQUILÍBRIO': 'ponto_equilibrio'
 };
 // Nota: "venda" (usado no __DATA__ estático, igual a receita_bruta) NÃO existe
 // como linha própria no DRE — é um alias. Preenchido logo abaixo por cópia.
@@ -1645,6 +1659,27 @@ const ORC = {
   }
 };
 
+/* Datas vindas da planilha chegam em três formas: texto "dd/mm/aaaa", número
+   serial do Sheets (quando a célula ficou com formato de texto sobre uma data —
+   foi o que aconteceu com Jul/26 nas Ordens de Produção, que virou 46204), ou
+   Date. Esta função devolve sempre "dd/mm/aaaa", ou string vazia. */
+function normalizaDataBR(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (v instanceof Date) {
+    return String(v.getDate()).padStart(2,'0') + '/' +
+           String(v.getMonth()+1).padStart(2,'0') + '/' + v.getFullYear();
+  }
+  const s = String(v).trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+  const n = Number(s);
+  if (!isNaN(n) && n > 20000 && n < 80000) {          // serial do Sheets
+    const d = new Date(Math.round((n - 25569) * 86400000));
+    return String(d.getUTCDate()).padStart(2,'0') + '/' +
+           String(d.getUTCMonth()+1).padStart(2,'0') + '/' + d.getUTCFullYear();
+  }
+  return s;
+}
+
 function remapDRE(blocoDRE) {
   const meses = blocoDRE.meses;
   const series = {};
@@ -1655,7 +1690,8 @@ function remapDRE(blocoDRE) {
     meses.forEach((m, i) => { obj[m] = l.valores[i] ?? 0; });
     series[chave] = obj;
   });
-  if (series.receita_bruta) series.venda = { ...series.receita_bruta };
+  // 'VENDA' agora é linha própria na planilha; o fallback abaixo só age se ela faltar
+  if (!series.venda && series.receita_bruta) series.venda = { ...series.receita_bruta };
   return { meses, series };
 }
 
@@ -1787,7 +1823,7 @@ function remapBatidas(linhasDoMes) {
   linhasDoMes.forEach(l => {
     const num = String(l['Nº Ordem'] ?? '');
     if (!porOrdem[num]) {
-      porOrdem[num] = { num: num, dt: l['Data'] ?? '', qtd_itens: 0, qtd_total: 0, custo_total: 0, itens: [] };
+      porOrdem[num] = { num: num, dt: normalizaDataBR(l['Data']), qtd_itens: 0, qtd_total: 0, custo_total: 0, itens: [] };
       ordemLista.push(porOrdem[num]);
     }
     const b = porOrdem[num];
@@ -5632,6 +5668,7 @@ function renderDRETable(){
   const rows = [
     {key:'receita_bruta', label:'(+) RECEITA BRUTA', cls:'row-major', sintetico:true},
     {key:'venda', label:'Venda', cls:'row-sub'},
+    {key:'comissao_mexileta', label:'Comissão Mexileta (representação)', cls:'row-sub'},
     {key:'impostos', label:'(−) IMPOSTOS', cls:'row-major row-clickable', neg:true, group:'imp', sintetico:true},
     {key:'simples', label:'Simples Nacional', cls:'row-sub row-detail', neg:true, group:'imp'},
     {key:'imp_icms', label:'ICMS', cls:'row-sub row-detail', neg:true, group:'imp'},
@@ -5679,12 +5716,14 @@ function renderDRETable(){
     {key:'adm_transporte', label:'Transporte', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_ipva', label:'IPVA', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_iptu', label:'IPTU', cls:'row-sub row-detail', neg:true, group:'adm'},
+    {key:'adm_software_ia', label:'Software de IA', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'adm_outros', label:'Outros Gastos Administrativos', cls:'row-sub row-detail', neg:true, group:'adm'},
     {key:'desp_pessoal', label:'(−) Despesas com Pessoal', cls:'row-major row-clickable', neg:true, group:'pes', sintetico:true},
     {key:'pes_prolabore', label:'Pró-Labore', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_salario', label:'Salário', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_beneficios', label:'Benefícios', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_comissoes', label:'Comissões', cls:'row-sub row-detail', neg:true, group:'pes'},
+    {key:'pes_comissao_interno', label:'Comissão Vendedor Interno', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_comissao_externo', label:'Comissão Vendedor Externo', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_13sal', label:'13º Salário', cls:'row-sub row-detail', neg:true, group:'pes'},
     {key:'pes_adic_noturno', label:'Adicional Noturno', cls:'row-sub row-detail', neg:true, group:'pes'},
@@ -5703,6 +5742,7 @@ function renderDRETable(){
     {key:'mkt_offline', label:'Anúncio Offline', cls:'row-sub row-detail', neg:true, group:'mkt'},
     {key:'mkt_graficos', label:'Materiais Gráficos', cls:'row-sub row-detail', neg:true, group:'mkt'},
     {key:'mkt_eventos', label:'Eventos', cls:'row-sub row-detail', neg:true, group:'mkt'},
+    {key:'mkt_comissao_mexileta', label:'Comissão sobre Venda (Mexileta)', cls:'row-sub row-detail', neg:true, group:'mkt'},
     {key:'mkt_atleta', label:'Patrocínio para Atleta', cls:'row-sub row-detail', neg:true, group:'mkt'},
     {key:'desp_financeiras', label:'(−) Despesas Financeiras', cls:'row-major row-clickable', neg:true, group:'fin', sintetico:true},
     {key:'fin_tarifas', label:'Tarifas Bancárias', cls:'row-sub row-detail', neg:true, group:'fin'},
@@ -5716,7 +5756,17 @@ function renderDRETable(){
     {key:'invest_provisoes', label:'(−) INVESTIMENTOS E PROVISÕES', cls:'row-major row-clickable', neg:true, group:'inv', sintetico:true},
     {key:'inv_equipamento', label:'Investimentos em Equipamento', cls:'row-sub row-detail', neg:true, group:'inv'},
     {key:'inv_emprestimos', label:'Empréstimos', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_tecnologia', label:'Investimento em Tecnologia', cls:'row-sub row-detail', neg:true, group:'inv'},
     {key:'inv_gerais', label:'Investimentos Gerais', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_capital_social', label:'Capital Social', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_depreciacao', label:'Depreciação', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_iof_emprestimos', label:'IOF sobre Empréstimos', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_juros_emprestimos', label:'Juros sobre Empréstimos', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'inv_provisao_manut', label:'Provisão Manutenção Maquinário', cls:'row-sub row-detail', neg:true, group:'inv'},
+    {key:'lucro_antes_tributos', label:'(=) LUCRO ANTES DE TRIBUTAÇÃO', cls:'row-result', sintetico:true},
+    {key:'tributacao', label:'(−) TRIBUTAÇÃO', cls:'row-major row-clickable', neg:true, group:'trib', sintetico:true},
+    {key:'trib_csll', label:'CSLL', cls:'row-sub row-detail', neg:true, group:'trib'},
+    {key:'trib_irpj', label:'IRPJ', cls:'row-sub row-detail', neg:true, group:'trib'},
     {key:'lucro_liquido', label:'(=) LUCRO LÍQUIDO', cls:'row-result', sintetico:true},
     {key:'distribuicao_lucros', label:'Distribuição de Lucros', cls:'row-major', neg:true, sintetico:true},
     {key:'excedente', label:'(=) EXCEDENTE', cls:'row-result row-major', sintetico:true}
