@@ -5567,7 +5567,7 @@ function renderFinDFC(){
   html += '<div class="pill" style="margin-bottom:18px;color:var(--teal-deep);"><span class="pill-num">02</span> · Financeiro · DRE</div>';
   html += '<h2 class="title-xl">DRE em <u>profundidade</u></h2>';
   html += '<p class="lead">Demonstração de Resultados em regime de caixa, com a série completa desde '+MESES[0]+'. '
-       + 'Mês a mês com análise vertical (AV%) e horizontal (AH%). Ao final, o acumulado de todo o período e a média dos últimos 12 meses. '
+       + 'Mês a mês com análise vertical (AV%) e horizontal (AH%). Ao final, o acumulado e a média dos últimos 12 meses. '
        + '<strong>Esta aba não segue o seletor de período</strong> — mostra sempre o histórico inteiro.</p>';
   html += '</div></div>';
 
@@ -5821,7 +5821,7 @@ function renderDRETable(){
     mesesSel.some(m => Math.abs((SERIES[r.key] && SERIES[r.key][m]) || 0) > 0.005);
   const activeRows = (dreView === 'sintetico' ? rows.filter(r => r.sintetico) : rows).filter(temValor);
   const showAH = mesesDRE.length > 1;
-  const labelAcum = 'Acumulado';
+  const labelAcum = 'Acumulado (12m)';
   const labelMedia = 'Média/mês (12m)';
 
   let html = '<div class="dre-wrap'+(dreView==='sintetico'?' dre-sintetico':'')+'"><table class="dre">';
@@ -5838,8 +5838,10 @@ function renderDRETable(){
   html += '<th class="accum">'+labelMedia+'</th>';
   html += '</tr></thead><tbody>';
 
-  // Receita Bruta acumulada do período — base do AV% da coluna Acumulado
-  const rbAcumPeriodo = mesesDRE.reduce((s,m) => s + (SERIES.receita_bruta[m] || 0), 0);
+  // Acumulado e média usam a MESMA janela de 12 meses: a coluna Acumulado
+  // somando 21 meses e a Média dividindo por 12 daria duas leituras que não
+  // conversam. Com a janela igual, Média = Acumulado ÷ 12.
+  const rbAcum12 = mesesMedia.reduce((s,m) => s + (SERIES.receita_bruta[m] || 0), 0);
 
   activeRows.forEach((r, idx) => {
     const isMajor = r.cls.includes('row-major');
@@ -5872,21 +5874,16 @@ function renderDRETable(){
         html += '<td class="'+ahClass+' month-end">'+(ah===null?'-':fmtPct(ah,{sign:true}))+'</td>';
       }
     });
-    // Acumulado do período selecionado
-    const acumPeriodo = mesesDRE.reduce((s,m) => {
+    // Acumulado dos últimos 12 meses
+    const acum12 = mesesMedia.reduce((s,m) => {
       const raw = (SERIES[r.key] && SERIES[r.key][m]) || 0;
       return s + (r.neg ? -raw : raw);
     }, 0);
-    let avAcum = rbAcumPeriodo ? (Math.abs(acumPeriodo) / rbAcumPeriodo) * 100 : null;
+    let avAcum = rbAcum12 ? (Math.abs(acum12) / rbAcum12) * 100 : null;
     if (r.key === 'receita_bruta') avAcum = 100;
-    html += '<td class="accum accum-start">'+(acumPeriodo===0?'-':fmtBRL(acumPeriodo))+'</td>';
+    html += '<td class="accum accum-start">'+(acum12===0?'-':fmtBRL(acum12))+'</td>';
     html += '<td class="accum muted">'+(avAcum===null||avAcum===0?'-':fmtPct(avAcum))+'</td>';
-    // média dos últimos 12 meses, não do período inteiro
-    const somaMedia = mesesMedia.reduce((s,m) => {
-      const raw = (SERIES[r.key] && SERIES[r.key][m]) || 0;
-      return s + (r.neg ? -raw : raw);
-    }, 0);
-    const mediaPeriodo = mesesMedia.length ? somaMedia / mesesMedia.length : 0;
+    const mediaPeriodo = mesesMedia.length ? acum12 / mesesMedia.length : 0;
     html += '<td class="accum">'+(mediaPeriodo===0?'-':fmtBRL(mediaPeriodo))+'</td>';
     html += '</tr>';
   });
