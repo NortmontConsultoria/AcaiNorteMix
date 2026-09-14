@@ -659,7 +659,7 @@
     border-top-color:rgba(1,30,60,.22);
   }
   table.np-table .row-major td{font-weight:700;}
-  table.np-table .row-sub td:first-child{padding-left:34px;font-size:12.5px;opacity:.75;}
+  table.np-table .row-sub td:first-child{padding-left:34px;font-size:12.5px;color:#3A4A5E;}
   table.np-table .row-clickable{cursor:pointer;}
   table.np-table .row-clickable td:first-child::before{
     content:'▸ ';opacity:.45;display:inline-block;transition:transform .15s;width:16px;
@@ -767,7 +767,7 @@
   table.dre .row-result td.cat-td{background:var(--mint-dark) !important;}
   table.dre .row-sub td{background:#fff !important;}
   /* CRÍTICO: não usar opacity em td.cat-td sticky (torna o fundo translúcido e causa "fantasma" no scroll). Usar color rgba diretamente. */
-  table.dre .row-sub td.cat-td{padding-left:32px;font-size:11px;font-weight:400;background:#fff !important;color:rgba(1,30,60,.62);}
+  table.dre .row-sub td.cat-td{padding-left:32px;font-size:11.5px;font-weight:500;background:#fff !important;color:#3A4A5E;}
   table.dre .neg{color:var(--danger);}
   table.dre .pos{color:var(--success);}
   table.dre .muted{opacity:.4;}
@@ -5817,8 +5817,11 @@ function renderDRETable(){
   // Elas existem na DRE para receber lançamento futuro, mas poluem a tabela
   // enquanto estão vazias. Linhas sintéticas e totais aparecem sempre.
   const mesesSel = mesesDRE;
+  // Conta analítica sem nenhum lançamento nos últimos 12 meses some da tabela.
+  // A janela é a mesma do Acumulado e da Média, para a linha exibida ser sempre
+  // uma linha que contribui para os totais da direita.
   const temValor = r => r.sintetico || !r.cls.includes('row-detail') ||
-    mesesSel.some(m => Math.abs((SERIES[r.key] && SERIES[r.key][m]) || 0) > 0.005);
+    mesesMedia.some(m => Math.abs((SERIES[r.key] && SERIES[r.key][m]) || 0) > 0.005);
   const activeRows = (dreView === 'sintetico' ? rows.filter(r => r.sintetico) : rows).filter(temValor);
   const showAH = mesesDRE.length > 1;
   const labelAcum = 'Acumulado (12m)';
